@@ -6,29 +6,30 @@
 
 録音から1曲ずつ切り出し、ボーカル・ドラム・ベース・その他（ギターなど）の4つの音（ステム）に分けます。分けた音ごとに音量や音色を整えてから混ぜ直し、配信サービスと同じくらいの音量にそろえます。
 
-ブラウザの画面では、設定を変えた複数の案を同時に再生できます。再生位置はそのままで、キー1つで案を切り替えて聴き比べられます。
+ブラウザの画面では設定を変えた複数の案を同時に再生できます。再生位置はそのままで、キー1つで案を切り替えて聴き比べられます。
 
 ## 準備
 
 次のものが必要です。
 
-- Python 3.11
+- [uv](https://docs.astral.sh/uv/)
 - ffmpeg（録音の切り出しに使います）
 
 ```bash
-uv venv --python 3.11 .venv
-uv pip install --python .venv/bin/python -r requirements.txt
+uv sync
 ```
+
+`.venv` に Python 3.11 と、`uv.lock` に固定したパッケージが入ります。Intel Mac では動きません（torch 2.5.1 に Intel Mac 用のパッケージがないため）。
 
 音を分ける処理は CPU で動かします。4分ほどの曲で、4〜8分かかります。
 
 ## 画面で使う（おすすめ）
 
 ```bash
-.venv/bin/python studio.py
+uv run studio.py
 ```
 
-ブラウザで `http://127.0.0.1:8765` が開きます。画面は表示と操作だけで、処理はこの PC の中で行います。音声が外に送られることはありません。
+ブラウザで `http://127.0.0.1:8765` が開きます。画面は表示と操作だけで、処理は `studio.py` を動かしている PC の中で行います。音声が外に送られることはありません。
 
 ### 1. 曲を追加する
 
@@ -56,19 +57,19 @@ uv pip install --python .venv/bin/python -r requirements.txt
 ある曲で決めた設定を、ほかの曲の出発点にもできます。
 
 - 「初期値に」: その版の設定を、これから追加する曲の初期値にします。
-- 「初期値を読み込む」: 初期値を、いま開いている曲の編集欄に読み込みます。
+- 「初期値を読み込む」: 初期値をいま開いている曲の編集欄に読み込みます。
 
 ## コマンドで使う
 
 ```bash
 # 切り出しと音の分離（曲ごとに1回だけ）
-.venv/bin/python prep.py "recordings/live.wav" --name my_song --start 612 --end 845
+uv run prep.py "recordings/live.wav" --name my_song --start 612 --end 845
 
 # songs/my_song/mix.yaml を書き換えてから混ぜ直す（分離はやり直しません）
-.venv/bin/python mix.py my_song
+uv run mix.py my_song
 
 # 全曲をまとめて混ぜ直す
-.venv/bin/python mix.py --all
+uv run mix.py --all
 ```
 
 ## できあがるファイル
@@ -98,5 +99,5 @@ uv pip install --python .venv/bin/python -r requirements.txt
 ## テスト
 
 ```bash
-.venv/bin/python -m pytest -q
+uv run pytest -q
 ```

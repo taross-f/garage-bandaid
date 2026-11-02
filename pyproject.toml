@@ -1,0 +1,30 @@
+[project]
+name = "garage-bandaid"
+version = "0.1.0"
+description = "First aid for audience-recorded live shows: split songs into stems with demucs, remix them, and A/B versions in a local web UI."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "demucs==4.1.0",
+    "torch==2.5.1",
+    "torchaudio==2.5.1",
+    "pedalboard==0.9.26",
+    "pyloudnorm==0.2.0",
+    "soundfile==0.14.0",
+    "numpy==2.4.6",
+    "scipy==1.17.1",
+    "pyyaml==6.0.3",
+    "ruamel.yaml==0.19.1",
+]
+
+[dependency-groups]
+dev = ["pytest==9.2.0"]
+
+[tool.uv]
+package = false
+# torch 2.5.1 には Intel Mac 向けの wheel がないので、解決する環境から外す
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux'",
+    "sys_platform == 'win32'",
+]

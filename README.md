@@ -12,20 +12,21 @@ A local web UI lets you play several mix versions in sync and switch between the
 
 Requirements:
 
-- Python 3.11
+- [uv](https://docs.astral.sh/uv/)
 - ffmpeg (used to cut the recording and resample to 48 kHz)
 
 ```bash
-uv venv --python 3.11 .venv
-uv pip install --python .venv/bin/python -r requirements.txt
+uv sync
 ```
+
+This creates `.venv` with Python 3.11 and the locked dependencies. Intel Macs are not supported (torch 2.5.1 has no wheels for them).
 
 Stem separation runs on the CPU and takes about 4–8 minutes for a 4-minute song.
 
 ## Using the web UI (recommended)
 
 ```bash
-.venv/bin/python studio.py
+uv run studio.py
 ```
 
 This opens `http://127.0.0.1:8765`. The page is only a front end: all processing runs on your machine, and no audio leaves it.
@@ -52,13 +53,13 @@ The UI labels are in Japanese.
 
 ```bash
 # Cut, diagnose and separate (once per song)
-.venv/bin/python prep.py "recordings/live.wav" --name my_song --start 612 --end 845
+uv run prep.py "recordings/live.wav" --name my_song --start 612 --end 845
 
 # Edit songs/my_song/mix.yaml, then re-mix (separation is not repeated)
-.venv/bin/python mix.py my_song
+uv run mix.py my_song
 
 # Re-mix every song
-.venv/bin/python mix.py --all
+uv run mix.py --all
 ```
 
 ## Output
@@ -86,5 +87,5 @@ Everything for a song goes under `songs/<name>/`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest -q
+uv run pytest -q
 ```

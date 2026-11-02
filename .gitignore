@@ -15,3 +15,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# yomiyasu の検査記録
+.yomiyasu/
