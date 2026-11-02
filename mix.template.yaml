@@ -1,0 +1,64 @@
+# 新しい曲の初期値。prep.py が songs/<name>/mix.yaml にコピーする（このファイル自体はミックスに使わない）。
+# songs/<name>/mix.yaml を書き換えて `.venv/bin/python mix.py <name>` で out/ を作り直す（分離は再実行しない）。
+
+# 元音源(song.wav)のブレンド量 [dB]。目安 -12 〜 -3。
+# 上げる: 分離ノイズが隠れて自然になるが、こもりも戻り、ステム調整の効きが鈍る。
+# 下げる: 輪郭は出るが、シュワシュワした分離ノイズが目立ちやすい。
+source_blend_db: -10.0
+
+# ステムごとの共通項目:
+#   gain_db : コンプ後のゲイン [dB]。目安 -6 〜 +6。ブレンドがあるので体感の差は数値より小さい
+#   hpf_hz  : ゼロ位相HPF(24dB/oct)のカットオフ [Hz]
+#   eq      : EQのリスト。freq [Hz], gain_db [目安 ±4], q [広い 0.7 〜 狭い 4]
+#             type は省略でピーキング。type: low_shelf で freq 以下の全体を上下する
+#   comp    : threshold_db [dBFS], ratio [1.5〜4], attack_ms [1〜30], release_ms [50〜300]
+#             threshold を上げる(0に近づける)か ratio を下げるとコンプは弱くなる
+stems:
+  vocals:
+    gain_db: 6.0          # 歌の前後感の主ツマミ。目安 0 〜 +6
+    hpf_hz: 120           # 目安 80 〜 160。下の被りを切る
+    eq:
+      - {freq: 350, gain_db: -3.0, q: 1.0}   # こもり取り。目安 0 〜 -4
+      - {freq: 3000, gain_db: 3.5, q: 1.0}   # 言葉の明瞭度。目安 0 〜 +4。上げすぎると耳に刺さる
+      - {freq: 7000, gain_db: 2.0, q: 0.8}   # 空気感。目安 0 〜 +3。上げると分離ノイズも上がる
+    comp: {threshold_db: -24, ratio: 3.0, attack_ms: 10, release_ms: 120}
+
+  drums:
+    gain_db: 1.5          # 目安 -3 〜 +3
+    hpf_hz: 40            # 目安 30 〜 60
+    eq:
+      - {freq: 400, gain_db: -2.5, q: 1.0}   # 箱鳴り。目安 0 〜 -4
+      - {freq: 4000, gain_db: 3.5, q: 0.8}   # スネア/アタック。目安 0 〜 +4
+      - {freq: 9000, gain_db: 1.5, q: 0.8}   # シンバル。録音で落ちている帯域。目安 0 〜 +5
+    comp: {threshold_db: -20, ratio: 2.0, attack_ms: 15, release_ms: 150}
+
+  bass:
+    gain_db: -1.0         # 低域過多の主ツマミ。目安 -6 〜 0
+    hpf_hz: 50            # 目安 30 〜 60
+    eq:
+      - {freq: 110, gain_db: -2.5, q: 1.0}   # 客席録音で膨らむ帯域。目安 0 〜 -4
+      - {freq: 800, gain_db: 2.0, q: 1.0}    # 音程の輪郭。目安 0 〜 +3
+    comp: {threshold_db: -20, ratio: 3.0, attack_ms: 20, release_ms: 200}
+
+  other:
+    gain_db: 0.0          # ギターの音量。目安 -3 〜 +3
+    hpf_hz: 90            # 目安 60 〜 150
+    eq:
+      - {freq: 300, gain_db: -2.5, q: 1.0}   # 中低域の濁り。目安 0 〜 -4
+      - {freq: 2500, gain_db: 2.0, q: 1.0}   # ピッキングの輪郭。目安 0 〜 +3。上げると歌の明瞭度帯域と被る
+    comp: {threshold_db: -22, ratio: 2.0, attack_ms: 20, release_ms: 150}
+
+master:
+  hpf_hz: 30              # 目安 20 〜 40
+  eq:
+    - {type: low_shelf, freq: 200, gain_db: -4.0, q: 0.7}  # 200Hz以下全体のカット。目安 0 〜 -6。下げすぎると音が軽くなる
+    - {freq: 300, gain_db: -1.5, q: 0.7}     # 200-400Hz の緩いカット。目安 0 〜 -3
+  bus_comp:               # 軽めの設定。目安 減衰 1〜2dB 程度
+    threshold_db: -16
+    ratio: 1.5
+    attack_ms: 30
+    release_ms: 200
+  target_lufs: -14.0      # 統合ラウドネスの目標
+  true_peak_dbtp: -1.0    # True Peak の上限
+  limiter_lookahead_ms: 2.0    # 目安 1 〜 5。短いと速いがピークの歪みが増えやすい
+  limiter_release_ms: 80.0     # 目安 50 〜 200。短いと音量が揺れて聞こえる

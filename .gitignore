@@ -1,0 +1,17 @@
+# 音声・生成物（録音や分離結果は公開しない）
+songs/
+recordings/
+*.wav
+*.flac
+*.aif
+*.aiff
+*.mp3
+mix.template.prev.yaml
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+
+# macOS
+.DS_Store

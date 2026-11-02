@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mix Studio</title>
+<style>
+:root {
+  --bg: #f4f3ef; --panel: #ffffff; --line: #dedbd2; --text: #1f1e1b; --muted: #75716a;
+  --accent: #2f6f62; --accent-soft: #e1eeea; --warn: #b4442e; --changed: #fff2c9; --changed-line: #d9a920;
+  --wave: #9fb8b1; --wave-active: #2f6f62; --loop: rgba(47,111,98,.12);
+  --b-low: #8b5a3c; --b-lowmid: #c69c4a; --b-mid: #5d8d7f; --b-high: #6f7fb3;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161716; --panel: #1f2120; --line: #333634; --text: #e9e7e1; --muted: #9a978f;
+    --accent: #6cc2ad; --accent-soft: #23362f; --warn: #e2765f; --changed: #3a3320; --changed-line: #d9a920;
+    --wave: #3f5a53; --wave-active: #6cc2ad; --loop: rgba(108,194,173,.14);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+header { display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+  padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+header h1 { font-size: 15px; margin: 0; letter-spacing: .02em; }
+header label { color: var(--muted); font-size: 12px; display: flex; gap: 6px; align-items: center; }
+#status { margin-left: auto; color: var(--muted); font-size: 12px; }
+#status.error { color: var(--warn); }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 16px; padding: 16px 20px 40px; }
+@media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; }
+h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
+button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
+button.danger:hover { border-color: var(--warn); color: var(--warn); }
+button:disabled { opacity: .5; cursor: default; }
+input, select, textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; }
+input[type=number] { width: 78px; font-family: var(--mono); font-size: 13px; text-align: right; }
+.transport { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+#play { width: 84px; }
+#time { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+#wave { width: 100%; height: 110px; display: block; border-radius: 6px; background: var(--bg); cursor: crosshair; }
+.keys { color: var(--muted); font-size: 12px; margin-top: 8px; }
+kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+.vrow { display: grid; grid-template-columns: 28px 22px minmax(0, 1fr) 210px auto; gap: 10px; align-items: center;
+  padding: 8px; border-radius: 6px; border: 1px solid transparent; }
+.vrow + .vrow { margin-top: 4px; }
+.vrow.listening { background: var(--accent-soft); border-color: var(--accent); }
+.vrow .key { font-family: var(--mono); font-size: 12px; text-align: center; color: var(--muted); }
+.vrow.listening .key { color: var(--accent); font-weight: 700; }
+.vrow .title { min-width: 0; cursor: pointer; }
+.vrow .id { font-family: var(--mono); font-weight: 600; }
+.vrow .note { width: 100%; border-color: transparent; background: transparent; padding: 1px 4px; margin-left: -4px; }
+.vrow .note:hover, .vrow .note:focus { border-color: var(--line); background: var(--bg); }
+.vrow .sub { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vrow .actions { display: flex; gap: 4px; }
+.badge { display: inline-block; white-space: nowrap; font-size: 11px; padding: 0 6px; border-radius: 9px; background: var(--accent); color: var(--panel); margin-left: 6px; }
+.badge.base { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.bands { display: flex; height: 10px; border-radius: 3px; overflow: hidden; }
+.bands span:nth-child(1) { background: var(--b-low); } .bands span:nth-child(2) { background: var(--b-lowmid); }
+.bands span:nth-child(3) { background: var(--b-mid); } .bands span:nth-child(4) { background: var(--b-high); }
+.metric { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
+.legend { display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+td { font-family: var(--mono); }
+.compare-wrap { overflow-x: auto; }
+.diff { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.diff b { color: var(--text); font-weight: 600; }
+#editor fieldset { border: none; border-top: 1px solid var(--line); margin: 0; padding: 10px 0 6px; }
+#editor legend { font-weight: 700; padding: 0 6px 0 0; font-size: 13px; }
+#editor fieldset fieldset { border-top: none; padding: 4px 0 4px 12px; }
+#editor fieldset fieldset legend { font-weight: 600; color: var(--muted); font-size: 12px; }
+.field { display: grid; grid-template-columns: 150px 86px minmax(0, 1fr); gap: 8px; align-items: start; padding: 3px 0; }
+.field .k { font-family: var(--mono); font-size: 12px; padding-top: 4px; }
+.hint { color: var(--muted); font-size: 11.5px; padding-top: 4px; white-space: pre-line; }
+.doc { color: var(--muted); font-size: 11.5px; white-space: pre-line; margin: 0 0 6px; }
+.changed input, .changed select { background: var(--changed); border-color: var(--changed-line); }
+.was { font-family: var(--mono); font-size: 11px; color: var(--changed-line); }
+.eq { width: 100%; margin: 2px 0 4px; }
+.eq td, .eq th { border: none; padding: 2px 3px; text-align: left; font-family: inherit; }
+.eq th { color: var(--muted); font-weight: 500; font-size: 11px; }
+.eq input[type=number] { width: 66px; }
+.eq .hint { padding: 0 0 4px; }
+.render-bar { position: sticky; bottom: 0; background: var(--panel); padding: 12px 0 2px; border-top: 1px solid var(--line); margin-top: 8px; display: flex; gap: 8px; }
+.render-bar input { flex: 1; }
+.empty { color: var(--muted); padding: 8px; }
+.editor-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+#prep-status { font-size: 12px; color: var(--muted); }
+#prep-status.done { color: var(--accent); cursor: pointer; text-decoration: underline; }
+#prep-status.error { color: var(--warn); }
+dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); padding: 18px 20px; width: min(560px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+dialog h2 { font-size: 15px; color: var(--text); }
+.form-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px; align-items: center; margin: 8px 0; }
+.form-row > span { color: var(--muted); font-size: 12px; }
+.form-row select, .form-row input:not([type=number]) { width: 100%; }
+#add-progress { margin: 12px 0 4px; font-size: 12px; color: var(--muted); }
+#add-progress progress { width: 100%; height: 8px; accent-color: var(--accent); }
+#add-progress.error { color: var(--warn); white-space: pre-wrap; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mix Studio</h1>
+  <label>曲 <select id="song"></select></label>
+  <button id="song-delete" class="danger" title="選んでいる曲を songs/ から削除する">曲を削除</button>
+  <button id="add-open" title="録音ファイルを切り出して分離し、曲として追加する">＋ 曲を追加</button>
+  <span id="prep-status"></span>
+  <label title="全ての音に同じだけかける再生音量。before は 0dBFS を超えるので -3dB 程度にしておく">モニター
+    <input id="trim" type="number" step="0.5" value="-3"> dB</label>
+  <span id="status"></span>
+</header>
+<main>
+  <div>
+    <section>
+      <div class="transport">
+        <button id="play" class="primary">▶ 再生</button>
+        <button id="loop" title="波形をドラッグして範囲を選ぶ">ループ: オフ</button>
+        <span id="time">0:00.0 / 0:00.0</span>
+      </div>
+      <canvas id="wave"></canvas>
+      <div class="keys"><kbd>Space</kbd> 再生/停止　<kbd>0</kbd> before　<kbd>1</kbd>–<kbd>9</kbd> 比較中の版　<kbd>←</kbd><kbd>→</kbd> 5秒移動　<kbd>L</kbd> ループ　波形クリックで移動、ドラッグでループ範囲</div>
+    </section>
+    <section>
+      <h2>聴き比べ（チェックした版を同時に再生し、再生位置そのままで切り替える）</h2>
+      <div id="versions"></div>
+      <div class="legend"><span><i style="background:var(--b-low)"></i>低域 20-200</span><span><i style="background:var(--b-lowmid)"></i>中低域 200-400</span><span><i style="background:var(--b-mid)"></i>中域 400-4k</span><span><i style="background:var(--b-high)"></i>高域 4k-20k</span></div>
+    </section>
+    <section>
+      <h2>数値の比較（チェックした版）</h2>
+      <div class="compare-wrap" id="compare"></div>
+    </section>
+  </div>
+  <div>
+    <section id="editor-section">
+      <div class="editor-head">
+        <h2 id="editor-title">編集</h2>
+        <button id="load-template" title="新しく追加する曲の初期値（mix.template.yaml）を編集中の値に読み込む。レンダリングするまで何も保存されない">初期値を読み込む</button>
+      </div>
+      <div id="editor"></div>
+      <div class="render-bar">
+        <input id="note" placeholder="この版のメモ（例: 歌を近く）">
+        <button id="render" class="primary">レンダリング</button>
+      </div>
+    </section>
+  </div>
+</main>
+<dialog id="ask">
+  <p id="ask-text" style="white-space: pre-line; margin: 0 0 4px;"></p>
+  <div class="dialog-actions"><button id="ask-cancel">やめる</button><button id="ask-ok" class="primary">OK</button></div>
+</dialog>
+<dialog id="add">
+  <h2>曲を追加</h2>
+  <p class="doc">録音ファイルを切り出し、診断して 4 つのステムに分離します。1 曲 4 分前後かかり、その間 CPU を使います。元のファイルは変更しません。閉じても裏で続きます。</p>
+  <label class="form-row"><span>録音ファイル</span><select id="add-source"></select></label>
+  <label class="form-row"><span>曲名 <span class="k">songs/&lt;名前&gt;</span></span><input id="add-name" placeholder="英数字・_・-"></label>
+  <div class="form-row"><span>範囲 [秒]</span>
+    <span><input id="add-start" type="number" step="0.1" min="0" placeholder="先頭"> 〜 <input id="add-end" type="number" step="0.1" min="0" placeholder="末尾">
+    <span class="hint">空欄なら全体。前後に 3 秒の余裕を付けて切り出す</span></span></div>
+  <div id="add-progress"></div>
+  <div class="dialog-actions"><button id="add-close">閉じる</button><button id="add-run" class="primary">追加</button></div>
+</dialog>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const BANDS = ["low (20-200Hz)", "low-mid (200-400Hz)", "mid (400-4kHz)", "high (4k-20kHz)"];
+const LABELS = {
+  source_blend_db: "元音源ブレンド", gain_db: "ゲイン", hpf_hz: "HPF", eq: "EQ", comp: "コンプ", bus_comp: "バスコンプ",
+  threshold_db: "スレッショルド", ratio: "レシオ", attack_ms: "アタック", release_ms: "リリース",
+  target_lufs: "目標ラウドネス", true_peak_dbtp: "True Peak 上限", limiter_lookahead_ms: "リミッター先読み",
+  limiter_release_ms: "リミッターリリース", vocals: "ボーカル", drums: "ドラム", bass: "ベース", other: "ギター/その他",
+  stems: "ステム", master: "マスター",
+};
+const EQ_COLUMNS = ["type", "freq", "gain_db", "q"];
+
+const state = {
+  song: null, data: null, base: null, draft: null,
+  compare: new Set(["before"]), listening: "before", rendering: false,
+};
+
+// ---------- util ----------
+// 確認ダイアログ。window.confirm はアプリ内ブラウザなどで出ずに false を返すことがあるので使わない
+function ask(text, okLabel = "OK", danger = false) {
+  const dlg = $("#ask"), ok = $("#ask-ok");
+  $("#ask-text").textContent = text;
+  ok.textContent = okLabel;
+  ok.style.background = ok.style.borderColor = danger ? "var(--warn)" : "";
+  return new Promise((resolve) => {
+    const done = (value) => { dlg.close(); resolve(value); };
+    ok.onclick = () => done(true);
+    $("#ask-cancel").onclick = () => done(false);
+    dlg.oncancel = () => resolve(false);  // Esc
+    dlg.showModal();
+    $("#ask-cancel").focus();
+  });
+}
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const fmt = (x, d = 1) => (x === null || x === undefined || Number.isNaN(x)) ? "–" : Number(x).toFixed(d);
+const fmtTime = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
+function getPath(obj, path) { return path.reduce((o, k) => (o == null ? undefined : o[k]), obj); }
+function setPath(obj, path, value) { path.slice(0, -1).reduce((o, k) => o[k], obj)[path.at(-1)] = value; }
+function setStatus(text, isError = false) { const s = $("#status"); s.textContent = text; s.classList.toggle("error", isError); }
+async function api(method, url, body) {
+  const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body && JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+function stepFor(key) {
+  if (key === "q" || key === "ratio") return 0.1;
+  if (key.endsWith("_db") || key === "target_lufs" || key === "true_peak_dbtp") return 0.5;
+  return 1;
+}
+function flatten(obj, prefix = "", out = {}) {
+  if (obj && typeof obj === "object") {
+    for (const [k, v] of Object.entries(obj)) flatten(v, prefix ? `${prefix}.${k}` : k, out);
+  } else out[prefix] = obj;
+  return out;
+}
+function diffConfigs(a, b) {
+  const fa = flatten(a), fb = flatten(b);
+  const keys = [...new Set([...Object.keys(fa), ...Object.keys(fb)])];
+  return keys.filter((k) => fa[k] !== fb[k]).map((k) => ({ path: k, from: fa[k], to: fb[k] }));
+}
+const versionById = (id) => state.data.versions.find((v) => v.meta.id === id);
+const baseConfig = () => state.base ? versionById(state.base).config : state.data.config;
+
+// ---------- audio ----------
+const player = {
+  ctx: null, master: null, buffers: new Map(), loading: new Map(), nodes: new Map(),
+  playing: false, offset: 0, t0: 0, loop: false, loopStart: 0, loopEnd: 0, duration: 0,
+
+  ensureCtx() {
+    if (!this.ctx) {
+      this.ctx = new AudioContext({ sampleRate: 48000 });
+      this.master = this.ctx.createGain();
+      this.master.connect(this.ctx.destination);
+      this.applyTrim();
+    }
+    return this.ctx;
+  },
+  applyTrim() { if (this.master) this.master.gain.value = Math.pow(10, Number($("#trim").value || 0) / 20); },
+  url(id) { return id === "before" ? `/audio/${state.song}/song.wav` : `/audio/${state.song}/${id}/after.flac`; },
+  load(id) {
+    if (this.buffers.has(id)) return Promise.resolve(this.buffers.get(id));
+    if (!this.loading.has(id)) {
+      const ctx = this.ensureCtx();
+      const p = fetch(this.url(id)).then((r) => { if (!r.ok) throw new Error(`${id}: ${r.status}`); return r.arrayBuffer(); })
+        .then((ab) => ctx.decodeAudioData(ab))
+        .then((buf) => { this.buffers.set(id, buf); this.loading.delete(id); this.duration = Math.max(this.duration, buf.duration); return buf; });
+      this.loading.set(id, p);
+    }
+    return this.loading.get(id);
+  },
+  reset() { this.stop(); this.buffers.clear(); this.loading.clear(); this.offset = 0; this.duration = 0; this.loop = false; this.loopStart = this.loopEnd = 0; },
+  gainFor(id) {
+    if (id !== state.listening) return 0;
+    if (id === "before") return Math.pow(10, (baseConfig().master.target_lufs - state.data.song_lufs) / 20);
+    return 1;
+  },
+  position() {
+    if (!this.playing) return this.offset;
+    let pos = this.offset + (this.ctx.currentTime - this.t0);
+    if (this.loop && this.loopEnd > this.loopStart && pos >= this.loopEnd) {
+      pos = this.loopStart + ((pos - this.loopStart) % (this.loopEnd - this.loopStart));
+    }
+    return Math.min(pos, this.duration);
+  },
+  start() {
+    const ctx = this.ensureCtx();
+    ctx.resume();
+    this.stopNodes();
+    const at = ctx.currentTime + 0.03;
+    for (const id of state.compare) {
+      const buf = this.buffers.get(id);
+      if (!buf) continue;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      if (this.loop && this.loopEnd > this.loopStart) { src.loop = true; src.loopStart = this.loopStart; src.loopEnd = this.loopEnd; }
+      const g = ctx.createGain();
+      g.gain.value = this.gainFor(id);
+      src.connect(g).connect(this.master);
+      src.start(at, this.offset);
+      src.onended = () => { if (this.playing && !this.loop && this.position() >= this.duration - 0.05) this.pause(); };
+      this.nodes.set(id, { src, g });
+    }
+    this.t0 = at;
+    this.playing = true;
+  },
+  stopNodes() { for (const { src } of this.nodes.values()) { src.onended = null; try { src.stop(); } catch (_) {} } this.nodes.clear(); },
+  pause() { this.offset = this.position(); this.stopNodes(); this.playing = false; renderTransport(); },
+  stop() { this.stopNodes(); this.playing = false; },
+  async toggle() {
+    if (this.playing) return this.pause();
+    await Promise.all([...state.compare].map((id) => this.load(id)));
+    if (this.offset >= this.duration - 0.05) this.offset = this.loop ? this.loopStart : 0;
+    this.start();
+    renderTransport();
+  },
+  seek(t) {
+    this.offset = Math.max(0, Math.min(t, this.duration));
+    if (this.playing) this.start();
+  },
+  refreshGains() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (const [id, { g }] of this.nodes) g.gain.setTargetAtTime(this.gainFor(id), now, 0.004);
+  },
+  restartIfPlaying() { if (this.playing) { this.offset = this.position(); this.start(); } },
+};
+
+async function listen(id) {
+  if (!state.compare.has(id)) { state.compare.add(id); }
+  state.listening = id;
+  renderVersions();
+  try {
+    setStatus(`${id} を読み込み中…`);
+    await player.load(id);
+    setStatus("");
+  } catch (e) { setStatus(e.message, true); return; }
+  if (player.playing && !player.nodes.has(id)) player.restartIfPlaying(); else player.refreshGains();
+  drawWaveCache();
+}
+
+// ---------- waveform ----------
+const wave = { cache: null, cacheId: null, drag: null };
+function drawWaveCache() {
+  const canvas = $("#wave");
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
+  canvas.width = w; canvas.height = h;
+  const buf = player.buffers.get(state.listening) || player.buffers.get("before");
+  if (!buf) { wave.cache = null; return; }
+  const data = buf.getChannelData(0), per = data.length / w;
+  const mins = new Float32Array(w), maxs = new Float32Array(w);
+  for (let x = 0; x < w; x++) {
+    let lo = 1, hi = -1;
+    const s = Math.floor(x * per), e = Math.min(data.length, Math.floor((x + 1) * per));
+    for (let i = s; i < e; i += 4) { const v = data[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+    mins[x] = lo; maxs[x] = hi;
+  }
+  wave.cache = { mins, maxs, w, h };
+  wave.cacheId = state.listening;
+}
+function drawWave() {
+  const canvas = $("#wave"), ctx = canvas.getContext("2d");
+  const css = getComputedStyle(document.documentElement);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!wave.cache) return;
+  const { mins, maxs, w, h } = wave.cache, mid = h / 2;
+  const dur = player.duration || 1, pos = player.position(), px = (pos / dur) * w;
+  if (player.loopEnd > player.loopStart) {
+    ctx.fillStyle = css.getPropertyValue("--loop");
+    ctx.fillRect((player.loopStart / dur) * w, 0, ((player.loopEnd - player.loopStart) / dur) * w, h);
+  }
+  for (let x = 0; x < w; x++) {
+    ctx.fillStyle = x < px ? css.getPropertyValue("--wave-active") : css.getPropertyValue("--wave");
+    ctx.fillRect(x, mid - maxs[x] * mid, 1, Math.max(1, (maxs[x] - mins[x]) * mid));
+  }
+  ctx.fillStyle = css.getPropertyValue("--text");
+  ctx.fillRect(px, 0, Math.max(1, window.devicePixelRatio || 1), h);
+}
+function waveTime(ev) {
+  const r = $("#wave").getBoundingClientRect();
+  return Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * (player.duration || 0);
+}
+$("#wave").addEventListener("mousedown", (ev) => { wave.drag = { x: ev.clientX, t: waveTime(ev) }; });
+window.addEventListener("mousemove", (ev) => {
+  if (!wave.drag || Math.abs(ev.clientX - wave.drag.x) < 5) return;
+  const t = waveTime(ev);
+  player.loopStart = Math.min(wave.drag.t, t); player.loopEnd = Math.max(wave.drag.t, t);
+});
+window.addEventListener("mouseup", (ev) => {
+  if (!wave.drag) return;
+  const moved = Math.abs(ev.clientX - wave.drag.x) >= 5;
+  wave.drag = null;
+  if (moved) { player.loop = true; player.offset = player.loopStart; if (player.playing) player.start(); renderTransport(); }
+  else player.seek(waveTime(ev));
+});
+
+function renderTransport() {
+  $("#play").textContent = player.playing ? "❚❚ 停止" : "▶ 再生";
+  $("#loop").textContent = player.loop && player.loopEnd > player.loopStart
+    ? `ループ: ${fmtTime(player.loopStart)}–${fmtTime(player.loopEnd)}` : "ループ: オフ";
+}
+function tick() {
+  $("#time").textContent = `${fmtTime(player.position())} / ${fmtTime(player.duration)}`;
+  drawWave();
+  requestAnimationFrame(tick);
+}
+
+// ---------- versions ----------
+function bandsBar(bands) {
+  return `<div class="bands">${BANDS.map((b) => `<span style="width:${bands[b]}%" title="${b} ${fmt(bands[b])}%"></span>`).join("")}</div>`;
+}
+function rowHtml(item, index) {
+  const listening = state.listening === item.id;
+  const key = index < 10 ? index : "";
+  return `<div class="vrow ${listening ? "listening" : ""}" data-id="${item.id}">
+    <span class="key">${key}</span>
+    <input type="checkbox" class="cmp" ${state.compare.has(item.id) ? "checked" : ""} ${item.id === "before" ? "disabled checked" : ""} title="比較に入れる">
+    <div class="title">
+      <div><span class="id">${item.title}</span>${item.badges}</div>
+      ${item.noteHtml}
+      <div class="sub">${item.sub}</div>
+    </div>
+    <div>${bandsBar(item.metrics.bands_pct)}
+      <div class="metric">${fmt(item.metrics.lufs, 1)} LUFS · TP ${fmt(item.metrics.true_peak_dbtp, 2)}</div></div>
+    <div class="actions">${item.actions}</div>
+  </div>`;
+}
+function compareOrder() {
+  return ["before", ...state.data.versions.map((v) => v.meta.id).filter((id) => state.compare.has(id))];
+}
+function renderVersions() {
+  const d = state.data, el = $("#versions");
+  const order = compareOrder();
+  const songMetrics = d.versions.length ? d.versions.at(-1).report.metrics.before : null;
+  const items = [{
+    id: "before", title: "before", badges: "", noteHtml: `<div class="sub">元音源を同じラウドネスに揃えただけ</div>`, sub: "",
+    metrics: songMetrics || { bands_pct: Object.fromEntries(BANDS.map((b) => [b, 25])), lufs: null, true_peak_dbtp: null }, actions: "",
+  }];
+  for (const v of d.versions) {
+    const id = v.meta.id;
+    const parentCfg = v.meta.parent ? versionById(v.meta.parent)?.config : null;
+    const changes = parentCfg ? diffConfigs(parentCfg, v.config) : [];
+    const sub = v.meta.parent ? `${v.meta.parent} から: ${changes.map((c) => `${c.path.replace(/^stems\./, "")} ${c.from}→${c.to}`).join(", ") || "変更なし"}`
+      : `mix.yaml から · ${v.meta.created.replace("T", " ")}`;
+    items.push({
+      id, title: id,
+      badges: (d.adopted.includes(id) ? `<span class="badge">採用中</span>` : "") + (d.template.includes(id) ? `<span class="badge base" title="新しく追加する曲の初期値（mix.template.yaml）と同じ設定">初期値</span>` : "")
+        + (state.base === id ? `<span class="badge base">編集元</span>` : ""),
+      noteHtml: `<input class="note" value="${(v.meta.note || "").replace(/"/g, "&quot;")}" placeholder="メモ">`,
+      sub, metrics: v.report.metrics.after,
+      actions: `<button class="use-base">編集元に</button><button class="adopt">採用</button><button class="to-template" title="この設定を、新しく追加する曲の初期値にする">初期値に</button><button class="danger delete">削除</button>`,
+    });
+  }
+  const shown = [items[0], ...items.slice(1).reverse()];
+  el.innerHTML = shown.map((it) => rowHtml(it, order.indexOf(it.id) >= 0 ? order.indexOf(it.id) : 99)).join("")
+    + (d.versions.length ? "" : `<div class="empty">まだ版がありません。右の設定（いまの mix.yaml）で「レンダリング」すると v001 ができます。</div>`);
+  renderCompare();
+}
+$("#versions").addEventListener("click", async (ev) => {
+  const row = ev.target.closest(".vrow"); if (!row) return;
+  const id = row.dataset.id;
+  if (ev.target.classList.contains("cmp")) {
+    if (ev.target.checked) { state.compare.add(id); await player.load(id).catch((e) => setStatus(e.message, true)); }
+    else { state.compare.delete(id); if (state.listening === id) state.listening = "before"; }
+    player.restartIfPlaying(); renderVersions(); drawWaveCache(); return;
+  }
+  if (ev.target.classList.contains("use-base")) { setBase(id); return; }
+  if (ev.target.classList.contains("adopt")) { adopt(id); return; }
+  if (ev.target.classList.contains("to-template")) { toTemplate(id); return; }
+  if (ev.target.classList.contains("delete")) { remove(id); return; }
+  if (ev.target.classList.contains("note")) return;
+  listen(id);
+});
+$("#versions").addEventListener("change", async (ev) => {
+  if (!ev.target.classList.contains("note")) return;
+  const id = ev.target.closest(".vrow").dataset.id;
+  try { await api("POST", `/api/songs/${state.song}/versions/${id}/note`, { note: ev.target.value }); versionById(id).meta.note = ev.target.value; setStatus(`${id} のメモを保存`); }
+  catch (e) { setStatus(e.message, true); }
+});
+
+function renderCompare() {
+  const ids = compareOrder().filter((id) => id !== "before");
+  if (!ids.length) { $("#compare").innerHTML = `<div class="empty">版をチェックするとここに並びます。</div>`; return; }
+  const vs = ids.map(versionById);
+  const first = vs[0].report.metrics.before;
+  const cols = [{ name: "before", m: first, r: null }, ...vs.map((v) => ({ name: v.meta.id, m: v.report.metrics.after, r: v.report }))];
+  const rows = [
+    ["LUFS", (c) => fmt(c.m.lufs, 2)],
+    ["True Peak dBTP", (c) => fmt(c.m.true_peak_dbtp, 2)],
+    ["RMS dBFS", (c) => fmt(c.m.rms_dbfs, 2)],
+    ...BANDS.map((b) => [b, (c) => `${fmt(c.m.bands_pct[b])}%`]),
+    ["マスターゲイン dB", (c) => c.r ? fmt(c.r.master_gain_db, 2) : "–"],
+    ...["vocals", "drums", "bass", "other"].map((s) => [`${s} コンプ減衰 dB`, (c) => c.r ? fmt(c.r.stems[s].comp_reduction_db) : "–"]),
+  ];
+  let html = `<table><tr><th></th>${cols.map((c) => `<th>${c.name}</th>`).join("")}</tr>`;
+  for (const [label, f] of rows) html += `<tr><td>${label}</td>${cols.map((c) => `<td>${f(c)}</td>`).join("")}</tr>`;
+  html += "</table>";
+  if (vs.length >= 2) {
+    const diffs = diffConfigs(vs[0].config, vs.at(-1).config);
+    html += `<p class="diff">${vs[0].meta.id} → ${vs.at(-1).meta.id} の設定差: ${diffs.map((c) => `<b>${c.path}</b> ${c.from}→${c.to}`).join("　") || "なし"}</p>`;
+  }
+  $("#compare").innerHTML = html;
+}
+
+// ---------- editor ----------
+function setBase(id) {
+  state.base = id;
+  state.draft = clone(baseConfig());
+  renderEditor(); renderVersions();
+}
+function inputFor(path, value) {
+  const key = path.at(-1);
+  if (key === "type") {
+    return `<select data-path='${JSON.stringify(path)}'>${["peak", "low_shelf"].map((t) => `<option ${t === (value ?? "peak") ? "selected" : ""}>${t}</option>`).join("")}</select>`;
+  }
+  return `<input type="number" step="${stepFor(String(key))}" value="${value}" data-path='${JSON.stringify(path)}'>`;
+}
+function changedClass(path) {
+  const before = getPath(baseConfig(), path), now = getPath(state.draft, path);
+  return before !== now ? "changed" : "";
+}
+function wasHtml(path) {
+  const before = getPath(baseConfig(), path), now = getPath(state.draft, path);
+  return before !== now ? `<span class="was">元 ${before ?? "なし"}</span>` : "";
+}
+function eqTable(path, list) {
+  const hints = state.data.hints;
+  let html = `<table class="eq"><tr>${EQ_COLUMNS.map((c) => `<th>${c}</th>`).join("")}<th></th></tr>`;
+  list.forEach((band, i) => {
+    const p = [...path, i];
+    html += `<tr>${EQ_COLUMNS.map((c) => `<td class="${changedClass([...p, c])}">${inputFor([...p, c], c === "type" ? band.type : band[c])}</td>`).join("")}
+      <td><button class="eq-del" data-path='${JSON.stringify(path)}' data-index="${i}" title="このバンドを削除">×</button></td></tr>`;
+    const hint = hints[p.join(".")];
+    if (hint) html += `<tr><td colspan="5" class="hint">${hint}</td></tr>`;
+  });
+  html += `</table><button class="eq-add" data-path='${JSON.stringify(path)}'>+ バンド追加</button>`;
+  return html;
+}
+function nodeHtml(path, value) {
+  const key = path.at(-1), hints = state.data.hints, hint = hints[path.join(".")] || "";
+  const label = LABELS[key] ? `${LABELS[key]}` : key;
+  if (Array.isArray(value)) {
+    return `<fieldset><legend>${label} <span class="k">${key}</span></legend>${eqTable(path, value)}</fieldset>`;
+  }
+  if (value && typeof value === "object") {
+    const doc = hint ? `<p class="doc">${hint}</p>` : "";
+    return `<fieldset><legend>${label}${LABELS[key] ? ` <span class="k">${key}</span>` : ""}</legend>${doc}
+      ${Object.entries(value).map(([k, v]) => nodeHtml([...path, k], v)).join("")}</fieldset>`;
+  }
+  return `<div class="field ${changedClass(path)}"><span class="k" title="${path.join(".")}">${LABELS[key] || key}<br><span style="color:var(--muted)">${key}</span></span>
+    <span>${inputFor(path, value)}<br>${wasHtml(path)}</span><span class="hint">${hint}</span></div>`;
+}
+function renderEditor() {
+  const title = state.base ? `編集（編集元: ${state.base}）` : "編集（編集元: いまの mix.yaml）";
+  $("#editor-title").textContent = title;
+  $("#editor").innerHTML = Object.entries(state.draft).map(([k, v]) => nodeHtml([k], v)).join("");
+}
+$("#editor").addEventListener("change", (ev) => {
+  const t = ev.target; if (!t.dataset.path) return;
+  const path = JSON.parse(t.dataset.path);
+  if (t.tagName === "SELECT") {
+    const band = getPath(state.draft, path.slice(0, -1));
+    if (t.value === "peak") delete band.type; else band.type = t.value;
+  } else {
+    const n = Number(t.value);
+    if (t.value === "" || Number.isNaN(n)) { setStatus(`${path.join(".")} は数値で入力`, true); return; }
+    setPath(state.draft, path, n);
+  }
+  renderEditor();
+});
+$("#editor").addEventListener("click", (ev) => {
+  const t = ev.target;
+  if (t.classList.contains("eq-add")) {
+    getPath(state.draft, JSON.parse(t.dataset.path)).push({ freq: 1000, gain_db: 0.0, q: 1.0 });
+    renderEditor();
+  } else if (t.classList.contains("eq-del")) {
+    getPath(state.draft, JSON.parse(t.dataset.path)).splice(Number(t.dataset.index), 1);
+    renderEditor();
+  }
+});
+$("#load-template").addEventListener("click", () => {
+  if (!state.data) return;
+  state.draft = clone(state.data.template_config);
+  renderEditor();
+  const n = diffConfigs(baseConfig(), state.draft).length;
+  setStatus(n ? `初期値を読み込みました（編集元と ${n} 項目違う）。レンダリングで版になります` : "初期値は編集元と同じ設定です");
+});
+$("#render").addEventListener("click", async () => {
+  if (state.rendering) return;
+  state.rendering = true; $("#render").disabled = true; $("#render").textContent = "レンダリング中…";
+  setStatus("レンダリング中（15〜30秒）…");
+  try {
+    const v = await api("POST", `/api/songs/${state.song}/versions`, { config: state.draft, note: $("#note").value, parent: state.base });
+    $("#note").value = "";
+    await reload();
+    setBase(v.meta.id);
+    await listen(v.meta.id);
+    player.restartIfPlaying();
+    setStatus(`${v.meta.id} をレンダリングしました`);
+  } catch (e) { setStatus(e.message, true); }
+  finally { state.rendering = false; $("#render").disabled = false; $("#render").textContent = "レンダリング"; }
+});
+
+async function adopt(id) {
+  if (!await ask(`${id} の設定を songs/${state.song}/mix.yaml に書き戻し、out/after.wav と before.wav を作り直します。`, "採用")) return;
+  setStatus(`${id} を採用中…`);
+  try { await api("POST", `/api/songs/${state.song}/versions/${id}/adopt`); await reload(); setStatus(`${id} を mix.yaml と out/ に反映しました`); }
+  catch (e) { setStatus(e.message, true); }
+}
+async function toTemplate(id) {
+  if (!await ask(`${id} の設定を、これから追加する曲の初期値（mix.template.yaml）にします。\n既にある曲の mix.yaml は変わりません。直前の初期値は mix.template.prev.yaml に残します。`, "初期値にする")) return;
+  try { await api("POST", `/api/songs/${state.song}/versions/${id}/template`); await reload(); setStatus(`${id} の設定を新しい曲の初期値にしました`); }
+  catch (e) { setStatus(e.message, true); }
+}
+async function remove(id) {
+  if (!await ask(`${id} を削除します（versions/${id}/ のファイルも消えます）。`, "削除", true)) return;
+  try {
+    await api("DELETE", `/api/songs/${state.song}/versions/${id}`);
+    state.compare.delete(id); player.buffers.delete(id);
+    if (state.listening === id) state.listening = "before";
+    if (state.base === id) { state.base = null; }
+    await reload();
+    if (!state.base) setBase(null);
+    player.restartIfPlaying();
+    setStatus(`${id} を削除しました`);
+  } catch (e) { setStatus(e.message, true); }
+}
+
+// ---------- song ----------
+async function reload() {
+  state.data = await api("GET", `/api/songs/${state.song}`);
+  for (const id of [...state.compare]) if (id !== "before" && !versionById(id)) state.compare.delete(id);
+  renderVersions();
+}
+async function openSong(name) {
+  player.reset();
+  state.song = name;
+  state.compare = new Set(["before"]); state.listening = "before";
+  await reload();
+  const recent = state.data.versions.slice(-3).map((v) => v.meta.id);
+  recent.forEach((id) => state.compare.add(id));
+  setBase(state.data.versions.length ? state.data.versions.at(-1).meta.id : null);
+  setStatus("音声を読み込み中…");
+  try {
+    await Promise.all([...state.compare].map((id) => player.load(id)));
+    setStatus("");
+  } catch (e) { setStatus(e.message, true); }
+  drawWaveCache(); renderTransport();
+}
+
+async function loadSongList() {
+  const songs = await api("GET", "/api/songs");
+  const current = state.song;
+  $("#song").innerHTML = songs.map((s) => `<option ${s === current ? "selected" : ""}>${s}</option>`).join("");
+  return songs;
+}
+
+// ---------- 曲の追加 ----------
+const adder = { sources: [], nameEdited: false, timer: null, job: null };
+function sourceLabel(src) {
+  const used = src.used_by.length ? ` — 追加済み: ${src.used_by.join(", ")}` : "";
+  return `${src.path}（${fmtTime(src.duration)}${src.channels === 1 ? " · mono" : ""}）${used}`;
+}
+async function openAdder() {
+  try { adder.sources = await api("GET", "/api/sources"); } catch (e) { setStatus(e.message, true); return; }
+  if (!adder.sources.length) { setStatus("録音ファイル（wav/flac/aiff）がフォルダ内に見つからない", true); return; }
+  const first = adder.sources.find((s) => !s.used_by.length) || adder.sources[0];
+  $("#add-source").innerHTML = adder.sources.map((s) => `<option value="${s.path.replace(/"/g, "&quot;")}" ${s === first ? "selected" : ""}>${sourceLabel(s)}</option>`).join("");
+  $("#add-name").value = first.name; adder.nameEdited = false;
+  $("#add-start").value = ""; $("#add-end").value = "";
+  renderAdderJob();
+  $("#add").showModal();
+}
+$("#add-source").addEventListener("change", (ev) => {
+  const src = adder.sources.find((s) => s.path === ev.target.value);
+  if (!adder.nameEdited) $("#add-name").value = src.name;
+});
+$("#add-name").addEventListener("input", () => { adder.nameEdited = true; });
+$("#add-open").addEventListener("click", openAdder);
+$("#add-close").addEventListener("click", () => $("#add").close());
+$("#add-run").addEventListener("click", async () => {
+  try {
+    adder.job = await api("POST", "/api/prep", {
+      source: $("#add-source").value, name: $("#add-name").value, start: $("#add-start").value, end: $("#add-end").value,
+    });
+    watchJob();
+  } catch (e) { $("#add-progress").className = "error"; $("#add-progress").textContent = e.message; }
+});
+function renderAdderJob() {
+  const job = adder.job, el = $("#add-progress"), head = $("#prep-status");
+  $("#add-run").disabled = job?.status === "running";
+  if (!job) { el.className = ""; el.innerHTML = ""; head.className = ""; head.textContent = ""; return; }
+  const elapsed = fmtTime(((job.finished || Date.now() / 1000) - job.started)).replace(/\.\d$/, "");
+  if (job.status === "running") {
+    const pct = job.fraction == null ? "" : ` ${Math.round(job.fraction * 100)}%`;
+    el.className = "";
+    el.innerHTML = `<div>${job.name}: ${job.stage}${pct} · ${elapsed} 経過</div><progress ${job.fraction == null ? "" : `value="${job.fraction}"`}></progress>`;
+    head.className = ""; head.textContent = `${job.name} を準備中: ${job.stage}${pct}`;
+  } else if (job.status === "done") {
+    el.className = ""; el.innerHTML = `<div>${job.name} を追加しました（${elapsed}）。</div>`;
+    head.className = "done"; head.textContent = `✓ ${job.name} を追加 — 開く`;
+  } else {
+    el.className = "error"; el.textContent = `${job.name} の追加に失敗: ${job.error}`;
+    head.className = "error"; head.textContent = `${job.name} の追加に失敗（＋曲を追加 で詳細）`;
+  }
+}
+function watchJob() {
+  clearTimeout(adder.timer);
+  renderAdderJob();
+  if (adder.job?.status !== "running") return;
+  adder.timer = setTimeout(async () => {
+    try {
+      adder.job = await api("GET", "/api/prep");
+      if (adder.job?.status === "done") {
+        const songs = await loadSongList();
+        if ($("#add").open || !state.song) { $("#add").close(); $("#song").value = adder.job.name; await openSong(adder.job.name); adder.job = null; }
+        else if (!songs.includes(adder.job.name)) throw new Error(`${adder.job.name} が一覧に出ない`);
+      }
+    } catch (e) { setStatus(e.message, true); }
+    watchJob();
+  }, 1000);
+}
+$("#song-delete").addEventListener("click", async () => {
+  const name = state.song;
+  if (!name) return;
+  if (!await ask(`曲「${name}」を削除します。\nsongs/${name}/ の mix.yaml・ステム・版・out/ がすべて消え、元に戻せません（元の録音ファイルは残ります）。`, "削除", true)) return;
+  try {
+    await api("DELETE", `/api/songs/${encodeURIComponent(name)}`);
+    player.reset(); state.song = null; state.data = null;
+    const songs = await loadSongList();
+    if (songs.length) await openSong(songs[0]);
+    else { $("#versions").innerHTML = ""; $("#compare").innerHTML = ""; $("#editor").innerHTML = ""; drawWaveCache(); await openAdder(); }
+    setStatus(`${name} を削除しました`);
+  } catch (e) { setStatus(e.message, true); }
+});
+$("#prep-status").addEventListener("click", async () => {
+  if (adder.job?.status !== "done") return;
+  const name = adder.job.name;
+  adder.job = null; renderAdderJob();
+  $("#song").value = name; await openSong(name);
+});
+
+$("#play").addEventListener("click", () => player.toggle());
+$("#loop").addEventListener("click", () => {
+  if (player.loopEnd <= player.loopStart) { setStatus("波形をドラッグしてループ範囲を選ぶ"); return; }
+  player.loop = !player.loop; player.restartIfPlaying(); renderTransport();
+});
+$("#trim").addEventListener("change", () => { player.applyTrim(); try { localStorage.setItem("trim", $("#trim").value); } catch (_) {} });
+$("#song").addEventListener("change", (ev) => openSong(ev.target.value));
+window.addEventListener("resize", drawWaveCache);
+window.addEventListener("keydown", (ev) => {
+  if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+  if (ev.code === "Space") { ev.preventDefault(); player.toggle(); }
+  else if (ev.key === "ArrowLeft") player.seek(player.position() - 5);
+  else if (ev.key === "ArrowRight") player.seek(player.position() + 5);
+  else if (ev.key === "l" || ev.key === "L") $("#loop").click();
+  else if (/^[0-9]$/.test(ev.key)) { const id = compareOrder()[Number(ev.key)]; if (id) listen(id); }
+});
+
+(async () => {
+  try { const t = localStorage.getItem("trim"); if (t !== null) $("#trim").value = t; } catch (_) {}
+  try {
+    adder.job = await api("GET", "/api/prep");
+    watchJob();
+    const songs = await loadSongList();
+    if (!songs.length) { setStatus("まだ曲がない。「＋ 曲を追加」から追加する"); await openAdder(); }
+    else await openSong(songs[0]);
+  } catch (e) { setStatus(e.message, true); }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
