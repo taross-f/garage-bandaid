@@ -72,6 +72,28 @@ uv run mix.py my_song
 uv run mix.py --all
 ```
 
+### カメラなど別の機材の録音を混ぜる
+
+同じ演奏を別の機材でも録っていれば、その左右の広がりと高域を足せます。
+
+```bash
+# 動画から音声を書き出す（元の動画は変更しません）
+ffmpeg -i source/live.MP4 -vn -c:a pcm_s24le recordings/live_camera.wav
+
+# 曲ごとに、カメラの音を song.wav に時間を合わせて work/camera.wav に書き出す
+uv run camera.py my_song recordings/live_camera.wav
+```
+
+時間合わせでは、曲の位置を探したうえで、2台の時計の速さの違い（ppm）も測って補正します。合わせたあとは `mix.yaml` の `camera` 節で量を決めます（-60 以下で使わない）。
+
+### 動画の音声を差し替える
+
+```bash
+uv run dub.py source/live.MP4 recordings/live_camera.wav exports/live_remix.MP4
+```
+
+`camera.py` で時間を合わせた曲だけを、曲の区間で `out/after.wav` に差し替えます。曲の外（MC や歓声）は元の動画の音のまま、曲と音量をそろえます。映像は再エンコードしません。
+
 ## できあがるファイル
 
 曲ごとに `songs/<曲名>/` の下に作られます。

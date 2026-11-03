@@ -62,6 +62,28 @@ uv run mix.py my_song
 uv run mix.py --all
 ```
 
+### Blending in a second recording (e.g. a camera)
+
+If the same show was also recorded on another device, its stereo width and top end can be added to the mix.
+
+```bash
+# Extract the audio from the video (the video is not modified)
+ffmpeg -i source/live.MP4 -vn -c:a pcm_s24le recordings/live_camera.wav
+
+# Per song: time-align the camera audio to song.wav and write work/camera.wav
+uv run camera.py my_song recordings/live_camera.wav
+```
+
+Alignment finds the song in the recording, then measures and corrects the clock-rate difference (ppm) between the two devices. Set the amounts in the `camera` section of `mix.yaml` (-60 or lower turns a layer off).
+
+### Re-dubbing the video
+
+```bash
+uv run dub.py source/live.MP4 recordings/live_camera.wav exports/live_remix.MP4
+```
+
+For every song aligned with `camera.py`, the song's section of the video's audio is replaced with `out/after.wav`. Audio between songs (talk, crowd) is kept and level-matched to the songs. The video stream is copied without re-encoding.
+
 ## Output
 
 Everything for a song goes under `songs/<name>/`.

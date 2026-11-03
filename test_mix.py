@@ -35,6 +35,11 @@ def test_normalize_master_hits_targets():
     assert true_peak_dbfs(out) <= -1.0
 
 
+def test_mono_loudness_equals_same_signal_played_in_stereo():
+    mono = noise_bursts()
+    assert integrated_lufs(mono, SR) == pytest.approx(integrated_lufs(np.repeat(mono, 2, axis=1), SR))
+
+
 def test_hpf_is_zero_phase():
     impulse = np.zeros((SR, 1))
     impulse[SR // 2] = 1.0
