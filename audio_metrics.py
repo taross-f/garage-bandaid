@@ -49,7 +49,11 @@ def true_peak_dbfs(x: np.ndarray, oversample: int = 4) -> float:
 
 
 def integrated_lufs(x: np.ndarray, sr: int) -> float:
-    return float(pyln.Meter(sr).integrated_loudness(to_2d(x)))
+    """再生したときの音量。モノラルは左右両方から鳴るので、2ch に複製して測る。"""
+    x = to_2d(x)
+    if x.shape[1] == 1:
+        x = np.repeat(x, 2, axis=1)
+    return float(pyln.Meter(sr).integrated_loudness(x))
 
 
 def band_balance(x: np.ndarray, sr: int) -> dict:

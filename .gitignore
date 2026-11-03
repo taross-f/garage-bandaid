@@ -6,6 +6,11 @@ recordings/
 *.aif
 *.aiff
 *.mp3
+*.mp4
+*.MP4
+*.mov
+*.MOV
+exports/
 mix.template.prev.yaml
 
 # Python

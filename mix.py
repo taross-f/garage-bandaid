@@ -24,6 +24,7 @@ from songs import STEM_NAMES, Song, prepared_songs
 LUFS_TOLERANCE = 0.05
 TP_MARGIN_DB = 0.05
 MAX_LOUDNESS_ITERATIONS = 10
+CAMERA_OFF_DB = -60.0  # camera 節の量がこれ以下なら、その層は足さない
 
 
 def load_audio(path: Path) -> tuple[np.ndarray, int]:
@@ -106,6 +107,32 @@ def normalize_master(x: np.ndarray, sr: int, cfg: dict) -> tuple[np.ndarray, flo
     return limited, gain_db
 
 
+def add_camera(target: Song, bus: np.ndarray, sr: int, cfg: dict) -> np.ndarray:
+    """camera.py で時間を合わせた別録音（work/camera.wav）から、左右の広がりと高域を借りて足す。
+
+    広がりは camera の左右差（L-R）だけを使う。WAV 側と同じ音を重ねないので、打ち消し合いが起きにくい。
+    どちらの層も切っているときは bus をそのまま返す（モノラルのまま）。
+    """
+    width_on, air_on = cfg["width_db"] > CAMERA_OFF_DB, cfg["air_db"] > CAMERA_OFF_DB
+    if not (width_on or air_on):
+        return bus
+    path = target.work / "camera.wav"
+    if not path.exists():
+        raise FileNotFoundError(f"{path} がない。先に camera.py で作るか、mix.yaml の camera 節を消す")
+    camera, camera_sr = load_audio(path)
+    if camera_sr != sr or len(camera) != len(bus) or camera.shape[1] != 2:
+        raise ValueError(f"camera.wav {camera.shape}@{camera_sr} は song と同じ長さのステレオが必要")
+
+    out = np.repeat(bus, 2, axis=1) if bus.shape[1] == 1 else bus.copy()
+    if air_on:
+        air = hpf(camera.mean(axis=1, keepdims=True), sr, cfg["air_hz"])
+        out += air * 10 ** (cfg["air_db"] / 20)
+    if width_on:
+        side = hpf((camera[:, :1] - camera[:, 1:]) / 2, sr, cfg["width_hpf_hz"]) * 10 ** (cfg["width_db"] / 20)
+        out += np.hstack([side, -side])
+    return out
+
+
 def master_chain(x: np.ndarray, sr: int, cfg: dict) -> tuple[np.ndarray, float]:
     x = hpf(x, sr, cfg["hpf_hz"])
     x = apply_board(x, sr, [*eq_plugins(cfg["eq"]), compressor(cfg["bus_comp"])])
@@ -133,6 +160,8 @@ def render(target: Song, cfg: dict) -> tuple[np.ndarray, np.ndarray, int, dict]:
             "comp_reduction_db": reduction,
         }
 
+    if "camera" in cfg:
+        bus = add_camera(target, bus, sr, cfg["camera"])
     after, master_gain = master_chain(bus, sr, cfg["master"])
     achieved = integrated_lufs(after, sr)
     before = song * 10 ** ((achieved - integrated_lufs(song, sr)) / 20)
