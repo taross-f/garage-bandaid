@@ -80,6 +80,16 @@ def test_add_camera_off_keeps_mono_bus(song):
     assert mix.add_camera(song, bus, SR, CAMERA_OFF) is bus
 
 
+def test_template_has_camera_section_turned_off(song):
+    """新しい曲には camera.wav が無いので、初期値の camera 節は何も足さない設定でなければならない。"""
+    import yaml
+    from songs import TEMPLATE_YAML
+    cfg = yaml.safe_load(TEMPLATE_YAML.read_text())["camera"]
+    assert set(cfg) == set(CAMERA_OFF)
+    bus = bursts(2)[:, None]
+    assert mix.add_camera(song, bus, SR, cfg) is bus
+
+
 def test_add_camera_width_only_changes_side(song):
     import soundfile as sf
     bus = bursts(3, seed=1)[:, None]
